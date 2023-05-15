@@ -10,7 +10,7 @@
   "version": "0.1.0",
   "description": "A reusable ui component library with react and tailwindcss",
   "scripts": {
-    "rollup": "rollup -c",
+    "rollup": "npm run build-tailwind && rollup -c",
     "test": "jest",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
