@@ -1,4 +1,3 @@
-'use client'
 import { VariantProps, cva } from 'class-variance-authority';
 import React, { HTMLProps } from 'react';
 import { ClassValue, clsx } from 'clsx'
