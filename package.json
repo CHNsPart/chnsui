@@ -1,5 +1,6 @@
 {
   "name": "chnsui",
+  "version": "0.2.1",
   "keywords": [
     "react",
     "tailwindcss",
@@ -7,7 +8,6 @@
     "components",
     "chnsui"
   ],
-  "version": "0.1.0",
   "description": "A reusable ui component library with react and tailwindcss",
   "scripts": {
     "rollup": "npm run build-tailwind && rollup -c",
@@ -18,6 +18,10 @@
     "build-tailwind": "npx tailwindcss -o ./dist/styles.css --minify",
     "build-storybooks": "storybook build"
   },
+  "bugs": {
+    "url": "https://github.com/chnspart/chnsui/issues"
+  },
+  "homepage": "https://github.com/CHNsPart/chnsui#readme",
   "author": "Touhidul Islam Chayan",
   "license": "ISC",
   "devDependencies": {
