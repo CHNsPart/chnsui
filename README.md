@@ -124,7 +124,17 @@ import { Heading } from 'chnsui';
 const App = () => {
   return (
     <div>
-      <Heading variant="h1" colors="primary" weight="bold" align="center" transform="uppercase" decoration="noUnderline" quickie="q_grad_watermelone x_bounce" animations="x_wave" sectionWidth="full">
+      <Heading 
+        variant="h1" 
+        colors="primary" 
+        weight="bold" 
+        align="center" 
+        transform="uppercase" 
+        decoration="noUnderline" 
+        quickie="q_grad_watermelone x_bounce" 
+        animations="x_wave" 
+        sectionWidth="full"
+      >
         Hello, world!
       </Heading>
   )
@@ -162,7 +172,7 @@ Props:
 | bg | boolean | Whether to apply a background color to the paragraph or not. Valid values: `true`, `false`. | `null` |
 
 
-And here's an example of how to use the Paragraph component with some of its props:
+And here's an example of how to use the `Paragraph` component with some of its props:
 
 ```jsx
 import Paragraph from './components/Paragraph'
@@ -190,12 +200,18 @@ const App = () => {
   return (
     <>
       <Paragraph bg colors="secondary">
-          Lorem ipsum dolor sit amet consectetur, adipisicing elit. Sit voluptatem incidunt deleniti modi voluptate, hic cumque adipisci eveniet error exercitationem, vitae voluptatum ducimus. Maiores enim totam aperiam explicabo a quae. Lorem ipsum dolor sit amet consectetur, adipisicing elit. Sit voluptatem incidunt deleniti modi voluptate, hic cumque adipisci eveniet error exercitationem, vitae voluptatum ducimus. Maiores enim totam aperiam explicabo a quae.
+          Lorem ipsum dolor sit amet consectetur, adipisicing elit. Sit voluptatem 
+          incidunt deleniti modi voluptate, hic cumque adipisci eveniet error exercitationem,
+          vitae voluptatum ducimus. Maiores enim totam aperiam explicabo a quae. Lorem ipsum
+          dolor sit amet consectetur, adipisicing elit. Sit voluptatem incidunt deleniti modi 
+          voluptate, hic cumque adipisci eveniet error exercitationem, vitae voluptatum ducimus.
+          Maiores enim totam aperiam explicabo a quae.
       </Paragraph>
       
       <div className="w-full flex flex-row gap-5">
         <Paragraph colors="dark" variant={"transparent"} badge={"dark"}>
-          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Illum at consectetur. Lorem ipsum, dolor sit amet consectetur adipisicing elit. Illum at consectetur.
+          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Illum at consectetur. 
+          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Illum at consectetur.
         </Paragraph>
         <Paragraph colors="warning" badge={"warning"} variant={"transparent"}>
           Lorem ipsum, dolor sit amet consectetur adipisicing elit. Illum at consectetur.
@@ -205,6 +221,110 @@ const App = () => {
   )
 }
 ``` 
+
+## Table
+
+The Table component is a customizable `Table` wrapper that provides styling and variant options for creating tables in React applications.
+
+Props:
+
+| Prop Name   | Type                                  | Default Value | Description                                             |
+| ----------- | ------------------------------------- | ------------- | ------------------------------------------------------- |
+| variant     | `'default' \| 'bg' \| 'border'`           | `null`        | The variant applied to the table head.                  |
+| className   | `string`                              | `undefined`   | Additional CSS class to apply to the table head element.|
+| alignment   | `'left' \| 'center' \| 'right'`              | `'left'`      | The horizontal alignment of the table head content.      |
+| children    | `React.ReactNode \| null`                 | `null`        | The content to display within the table head.            |
+
+Note: The `...rest` prop in the `Table` component is used to pass any additional HTML attributes to the underlying `<table>` element.
+
+Example:
+```jsx
+import { Paragraph } from "chnsui";
+import { Table, TableHead, TableBody, Td, Th, Tr } from "chnsui";
+
+
+
+export const TableRaw: React.FC = () => {
+  return (
+    <div className='flex flex-col gap-5'>
+      <Paragraph>Default Table</Paragraph>
+      <Table>
+        <Tr>
+            <Th>Kings Treasury</Th>
+            <Th>Peoples happiness</Th>
+        </Tr>
+        <Tr>
+            <Td>Empty</Td>
+            <Td>Overflowing</Td>
+        </Tr>
+      </Table>
+    </div>
+  );
+};
+export const TableRawSecondary: React.FC = () => {
+  return (
+    <div className='flex flex-col gap-5'>
+      <Paragraph>Default Table</Paragraph>
+      <Table variant={"bg"}>
+        <TableHead alignment="center">
+            <Tr variant={"default"}>
+                <Th>Kings Treasury</Th>
+                <Th>Kings Treasury</Th>
+                <Th>Peoples happiness</Th>
+                <Th>Peoples happiness</Th>
+            </Tr>
+         </TableHead>
+         <TableBody alignment="center">
+            <Tr variant={"bg"}>
+                <Td>Empty</Td>
+                <Td>Overflowing</Td>
+                <Td variant={"bg"}>.</Td>
+                <Td>Overflowing</Td>
+            </Tr>
+            <Tr variant={"bg"}>
+                <Td>Empty</Td>
+                <Td>Overflowing</Td>
+                <Td>Overflowing</Td>
+            </Tr>
+            <Tr variant={"bg"}>
+                <Td variant={"bg"}>.</Td>
+                <Td>Overflowing</Td>
+                <Td>Overflowing</Td>
+                <Td>Overflowing</Td>
+            </Tr>
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+
+export const TableSimple = () => {
+  return (
+    <Table padding="all" alignmentment="center" variant="bg" className="custom-table">
+      <TableHead variant="bg" alignment="center">
+        <Tr>
+          <Th>Header 1</Th>
+          <Th>Header 2</Th>
+        </Tr>
+      </TableHead>
+      <TableBody>
+        <Tr>
+          <Td>Cell 1</Td>
+          <Td>Cell 2</Td>
+        </Tr>
+        <Tr>
+          <Td>Cell 3</Td>
+          <Td>Cell 4</Td>
+        </Tr>
+      </TableBody>
+    </Table>
+  );
+};
+
+
+```
+
+And here's an example of how to use the `Table` component with some of its props:
 
 ## Author
 
