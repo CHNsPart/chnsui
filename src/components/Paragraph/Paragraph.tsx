@@ -2,8 +2,6 @@ import * as React from 'react'
 import { VariantProps, cva } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
-
-
 const paraVariants = cva(
   "text-md leading-7 h-fit min-h-10",
   {
