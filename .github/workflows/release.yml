@@ -15,7 +15,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
       - run: npm run rollup
-      - run: npm version patch -m "Upgrade to %s"
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.CHNSUI_TOKEN }}
