@@ -334,6 +334,8 @@ And here's an example of how to use the `Table` component with some of its props
 ## Author
 
 This React component library with TailwindCSS is created and maintained by Touhidul Islam Chayan.
+<!-- ![fav](https://github.com/CHNsPart/chnsui/assets/58574102/e892a3ee-220c-46da-87d8-cf16ef4934cd) -->
+
 
 ## License
 
