@@ -46,10 +46,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
           
       - name: Install dependencies
@@ -59,7 +59,12 @@ jobs:
         run: npm run lint
         
       - name: Run tests
-        run: npm run test
+        run: |
+          npm run test || {
+            echo "Tests failed. Showing error logs:"
+            cat coverage/lcov-report/index.html || true
+            exit 1
+          }
         
       - name: Build project
         run: npm run build
@@ -68,12 +73,19 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
         with:
-          node-version: 18
+          fetch-depth: 0
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org/'
           
       - name: Install dependencies
         run: npm ci
@@ -84,7 +96,8 @@ jobs:
       - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.CHNSUI_TOKEN }}
+          NPM_TOKEN: ${{ secrets.CHNSUI_TOKEN }}
         run: npx semantic-release
 ```
 
@@ -135,27 +148,33 @@ on:
   push:
     tags:
       - 'v*'
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run rollup
-      - run: npm publish
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm test
+        
+      - name: Build
+        run: npm run build
+        
+      - name: Publish to NPM
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.CHNSUI_TOKEN }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/create-release@v1
+          
+      - name: Create Release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -163,7 +182,6 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-
 ```
 
 # .gitignore
@@ -284,6 +302,14 @@ npm run pre-commit
 </project>
 ```
 
+# .npmrc
+
+```
+//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+registry=https://registry.npmjs.org/
+always-auth=true
+```
+
 # .prettierrc.js
 
 ```js
@@ -309,7 +335,9 @@ module.exports = {
     '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
-    '@semantic-release/npm',
+    ['@semantic-release/npm', {
+      npmPublish: true,
+    }],
     '@semantic-release/github',
     [
       '@semantic-release/git',
@@ -498,24 +526,66 @@ module.exports = {
 ```js
 module.exports = {
   presets: [
-    "@babel/preset-env",
-    "@babel/preset-react",
-    "@babel/preset-typescript",
+    ['@babel/preset-env', { targets: { node: 'current' } }],
+    '@babel/preset-typescript',
+    ['@babel/preset-react', { runtime: 'automatic' }],
   ],
 };
-
 ```
 
 # jest.config.js
 
 ```js
+/** @type {import('jest').Config} */
 module.exports = {
-  testEnvironment: "jsdom",
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
-    ".(css|less|scss)$": "identity-obj-proxy",
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^@/(.*)$': '<rootDir>/src/$1'
   },
+  transform: {
+    '^.+\\.(ts|tsx)$': ['babel-jest', { presets: ['@babel/preset-typescript'] }]
+  },
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.{ts,tsx}',
+    '<rootDir>/src/**/*.{spec,test}.{ts,tsx}'
+  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.stories.{ts,tsx}',
+    '!src/**/*.d.ts'
+  ],
+  rootDir: '.',
+  roots: ['<rootDir>/src']
 };
+```
 
+# jest.setup.js
+
+```js
+require('@testing-library/jest-dom');
+
+const originalError = console.error;
+beforeAll(() => {
+  console.error = (...args) => {
+    const warnings = [
+      'Warning: ReactDOM.render is no longer supported',
+      'Warning: `react-dom/test-utils` is deprecated'
+    ];
+    
+    if (warnings.some(warning => args[0] && args[0].includes(warning))) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
 ```
 
 # LICENSE
@@ -538,7 +608,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 ```json
 {
   "name": "chnsui",
-  "version": "0.2.3",
+  "version": "1.0.0",
   "keywords": [
     "react",
     "tailwindcss",
@@ -552,8 +622,9 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     "build": "npm run build-tailwind && npm run build-ts",
     "build-ts": "tsc && rollup -c",
     "build-tailwind": "npx tailwindcss -o ./dist/styles.css --minify",
-    "test": "jest --coverage",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx,css}'",
@@ -585,9 +656,9 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
   "license": "ISC",
   "devDependencies": {
     "@babel/core": "^7.23.3",
-    "@babel/preset-env": "^7.23.3",
-    "@babel/preset-react": "^7.23.3",
-    "@babel/preset-typescript": "^7.23.3",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.25.9",
+    "@babel/preset-typescript": "^7.26.0",
     "@mdx-js/react": "^2.1.2",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^25.0.7",
@@ -607,16 +678,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     "@storybook/react": "^7.6.0",
     "@storybook/react-webpack5": "^7.6.0",
     "@storybook/testing-library": "^0.2.2",
-    "@testing-library/react": "^13.3.0",
-    "@types/jest": "^28.1.6",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^14.2.1",
+    "@types/jest": "^29.5.14",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/storybook__react": "^4.0.2",
+    "@types/testing-library__jest-dom": "^5.14.9",
     "@types/webpack": "^5.28.5",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "autoprefixer": "^10.4.16",
-    "babel-jest": "^27.3.1",
+    "babel-jest": "^27.5.1",
     "babel-loader": "^8.2.3",
     "class-variance-authority": "^0.6.0",
     "clsx": "^1.2.1",
@@ -628,7 +701,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     "html-webpack-plugin": "^5.5.0",
     "husky": "^8.0.3",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^28.1.3",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.10",
     "next-transpile-modules": "^10.0.0",
     "postcss": "^8.4.31",
@@ -1276,23 +1350,24 @@ export default Button;
 # src\components\Button\index.ts
 
 ```ts
-export { default } from "./Button";
-
+export { default } from './Button';
+export type { ButtonProps } from './Button';
 ```
 
 # src\components\index.ts
 
 ```ts
-export { default as Button } from "./Button";
-export { default as Heading } from "./Typography";
-export { default as Paragraph } from "./Paragraph";
-export *  from "./Table";
+export { default as Button } from './Button';
+export { default as Typography } from './Typography';
+export { default as Paragraph } from './Paragraph';
+export * from './Table';
 ```
 
-# src\components\Paragraph\index.tsx
+# src\components\Paragraph\index.ts
 
-```tsx
-export { default } from "./Paragraph";
+```ts
+export { default } from './Paragraph';
+export type { ParagraphProps } from './Paragraph';
 ```
 
 # src\components\Paragraph\Paragraph.stories.tsx
@@ -1597,7 +1672,7 @@ export default Paragraph;
 # src\components\Table\index.ts
 
 ```ts
-export * from "./Table";
+export * from './Table';
 ```
 
 # src\components\Table\Table.stories.tsx
@@ -1982,216 +2057,94 @@ export const TableHeaderCell = React.forwardRef<HTMLTableCellElement, TableHeade
 TableHeaderCell.displayName = "TableHeaderCell";
 ```
 
-# src\components\Typography\Heading.tsx
+# src\components\Typography\__tests__\Typography.test.tsx
 
 ```tsx
-/**
- * @deprecated Use Typography component instead. This component will be removed in the next major version.
- */
-import * as React from 'react'
-import { VariantProps, cva } from 'class-variance-authority'
-import { cn } from '../../lib/utils'
+import * as React from 'react';
+import { render, screen } from '@testing-library/react';
+import Typography from '../Typography';
 
-const headerVariants = cva(
-  "text-4xl font-extrabold tracking-tight lg:text-5xl text-blue-500 dark:text-blue-400",
-  {
-    variants: {
-      variant: {
-        h1: "text-4xl font-extrabold tracking-tight lg:text-5xl",
-        h2: "text-2xl font-bold tracking-tight lg:text-3xl",
-        h3: "text-xl tracking-tight lg:text-xl",
-        h4: "text-lg tracking-tight lg:text-lg",
-        h5: "text-md tracking-tight lg:text-md",
-        h6: "text-sm tracking-tight lg:text-sm",
-      },
-      colors:{
-        primary: "text-primary dark:text-blue-400",
-        secondary: "text-secondary dark:text-gray-300",
-        tertiary: "text-tertiary dark:text-blue-100",
-        danger: "text-danger dark:text-red-400",
-        warning: "text-warning dark:text-yellow-400",
-        success: "text-success dark:text-green-400",
-        info: "text-info dark:text-cyan-400",
-        dark: "text-dark/20 dark:text-gray-400/20",
-        light: "text-white dark:text-white",
-      },
-      weight: {
-        thin: "font-thin",
-        light: "font-light",
-        normal: "font-normal",
-        medium: "font-medium",
-        semibold: "font-semibold",
-        bold: "font-bold",
-        extrabold: "font-extrabold",
-        black: "font-black",
-      },
-      align: {
-        left: "text-left",
-        center: "text-center",
-        right: "text-right",
-        justify: "text-justify",
-      },
-      transform: {
-        uppercase: "uppercase",
-        lowercase: "lowercase",
-        capitalize: "capitalize",
-        normalcase: "normal-case",
-      },
-      decoration: {
-        underline: "underline",
-        lineThrough: "line-through",
-        noUnderline: "no-underline",
-      },
-      quickie:{
-        q_grad_watermelone: "bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-green-500 to-violet-500",
-        q_grad_aqua: "bg-clip-text text-transparent bg-gradient-to-r from-sky-300 via-blue-600 to-blue-700",
-        q_grad_rasta: "bg-clip-text text-transparent bg-gradient-to-r from-green-500 via-green-600 to-green-700",
-        q_grad_lemon: "bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-teal-500 to-teal-500",
-        q_grad_rose: "bg-clip-text text-transparent bg-gradient-to-l from-rose-500 via-rose-600 to-teal-200",
-        
-        q_line:"underline underline-offset-2 hover:underline-offset-0 decoration-primary",
-        q_line_sync:"underline underline-offset-2 hover:underline-offset-0 decoration-current",
-        
-        qc_leanFull: "w-full text-center",
-        qc_leanLeft: "w-full text-left",
-        qc_leanRight: "w-full text-right",
+describe('Typography Component', () => {
+  it('renders without crashing', () => {
+    render(<Typography>Test Content</Typography>);
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
 
-        qc_leanHalf: "w-1/2 text-center",
-        qc_leanLeftHalf: "w-1/2 text-left",
-        qc_leanRightHalf: "w-1/2 text-right",
-        
-        qc_short:"w-1/2 text-left",
-        qc_shortLeft:"w-1/2 text-left",
-        qc_shortRight:"w-1/2 text-right",
-        shortCenter:"w-1/2 text-center",
-        qc_shortJustify:"w-1/2 text-justify",
-      },
-      sectionWidth: {
-        full: "w-full",
-        half: "w-1/2",
-        third: "w-1/3",
-        fourth: "w-1/4",
-      },
-      animations:{
-        x_wave: "animate-wave",
-        x_jello: "animate-jello",
-        x_rubberBand: "animate-rubberBand",
-        x_flash: "animate-flash",
-        x_wiggle: "animate-wiggle",
-        x_bounce: "animate-bounce",
-        x_spin: "animate-spin",
-        x_pulse: "animate-pulse",
-        x_ping: "animate-ping",
+  it('renders correct heading level when variant is specified', () => {
+    render(<Typography variant="h1">Heading 1</Typography>);
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
 
-      }
-    },
-    defaultVariants: {
-      variant: "h1",
-      colors: "primary",
-      weight: null,
-      align: null,
-      transform: null,
-      decoration: null,
-      quickie: null,
-      animations:null,
-      sectionWidth:null
-    },
-  }
-)
+  it('applies correct text color class', () => {
+    const { container } = render(
+      <Typography textColor="primary">Colored Text</Typography>
+    );
+    const element = container.firstChild as HTMLElement;
+    expect(element).toHaveClass('text-primary');
+  });
 
-export interface HeadingProps
-  extends React.HTMLAttributes<HTMLHeadingElement>,
-    VariantProps<typeof headerVariants> {
-}
+  it('applies gradient class when specified', () => {
+    const { container } = render(
+      <Typography gradient="watermelon">Gradient Text</Typography>
+    );
+    const element = container.firstChild as HTMLElement;
+    expect(element).toHaveClass('bg-gradient-to-r');
+  });
 
-const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
-  ({ className, children, colors, variant, weight, align, transform, decoration, quickie, animations, sectionWidth, ...props }, ref) => {
-    if(variant==='h1'){
-        return (
-          <h1
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h1>
-        )
-    }
-    if(variant==='h2'){
-        return (
-          <h2
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h2>
-        )
-    }
-    if(variant==='h3'){
-        return (
-          <h3
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h3>
-        )
-    }
-    if(variant==='h4'){
-        return (
-          <h4
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h4>
-        )
-    }
-    if(variant==='h5'){
-        return (
-          <h5
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h5>
-        )
-    }
-    if(variant==='h6'){
-        return (
-          <h6
-            className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-            ref={ref}
-            {...props}
-          >
-            {children}
-          </h6>
-        )
-    }
-    return (
-        <h1
-          className={cn(headerVariants({ variant, colors, weight, align, transform, decoration, quickie, animations, sectionWidth, className }))}
-          ref={ref}
-          {...props}
-          >
-          {children}
-        </h1>
-    )
-  }
-)
-Heading.displayName = 'Heading'
+  it('combines multiple style variations', () => {
+    const { container } = render(
+      <Typography
+        variant="h2"
+        textColor="primary"
+        gradient="watermelon"
+        weight="bold"
+        align="center"
+      >
+        Styled Text
+      </Typography>
+    );
+    const element = container.firstChild as HTMLElement;
+    
+    // Check each class separately
+    expect(element).toHaveClass('font-bold');
+    expect(element).toHaveClass('text-center');
+    expect(element).toHaveClass('bg-gradient-to-r');
+    
+    // Check element type
+    expect(element.tagName.toLowerCase()).toBe('h2');
+  });
 
-export default Heading
+  it('applies custom className alongside component classes', () => {
+    const { container } = render(
+      <Typography className="custom-class">Custom Styled Text</Typography>
+    );
+    const element = container.firstChild as HTMLElement;
+    expect(element).toHaveClass('custom-class');
+  });
+
+  it('renders blockquote variant correctly', () => {
+    render(
+      <Typography variant="blockquote">Quote Text</Typography>
+    );
+    const element = screen.getByText('Quote Text');
+    expect(element.tagName.toLowerCase()).toBe('blockquote');
+  });
+
+  it('renders code variant correctly', () => {
+    render(
+      <Typography variant="code">Code Text</Typography>
+    );
+    const element = screen.getByText('Code Text');
+    expect(element.tagName.toLowerCase()).toBe('code');
+  });
+});
 ```
 
-# src\components\Typography\index.tsx
+# src\components\Typography\index.ts
 
-```tsx
-export { default } from "./Heading";
+```ts
+export { default } from './Typography';
+export type { TypographyProps } from './Typography';
 ```
 
 # src\components\Typography\Typography.stories.tsx
@@ -2449,23 +2402,27 @@ import { VariantProps, cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const typographyVariants = cva(
-  "text-base tracking-tight", 
+  "tracking-tight", 
   {
     variants: {
       variant: {
-        h1: "text-4xl font-extrabold lg:text-5xl",
-        h2: "text-3xl font-bold lg:text-4xl",
-        h3: "text-2xl font-semibold lg:text-3xl",
-        h4: "text-xl font-semibold lg:text-2xl",
-        h5: "text-lg font-medium lg:text-xl",
-        h6: "text-base font-medium lg:text-lg",
-        p: "text-base leading-7",
-        blockquote: "text-xl italic font-semibold",
-        code: "font-mono text-sm",
-        lead: "text-xl text-gray-600 dark:text-gray-400",
+        // Heading variants
+        h1: "scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl",
+        h2: "scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0",
+        h3: "scroll-m-20 text-2xl font-semibold tracking-tight",
+        h4: "scroll-m-20 text-xl font-semibold tracking-tight",
+        h5: "scroll-m-20 text-lg font-semibold tracking-tight",
+        h6: "scroll-m-20 text-base font-semibold tracking-tight",
+        
+        // Paragraph variants
+        p: "leading-7 [&:not(:first-child)]:mt-6",
+        blockquote: "mt-6 border-l-2 border-slate-300 pl-6 italic text-slate-800 dark:border-slate-600 dark:text-slate-200",
+        code: "relative rounded bg-slate-100 py-[0.2rem] px-[0.3rem] font-mono text-sm font-semibold text-slate-900 dark:bg-slate-800 dark:text-slate-400",
+        lead: "text-xl text-slate-700 dark:text-slate-400",
         large: "text-lg font-semibold",
         small: "text-sm font-medium leading-none",
-        muted: "text-sm text-gray-600 dark:text-gray-400",
+        muted: "text-sm text-slate-500 dark:text-slate-400",
+        list: "my-6 ml-6 list-disc [&>li]:mt-2",
       },
       textColor: {
         primary: "text-primary dark:text-blue-400",
@@ -2536,9 +2493,11 @@ const typographyVariants = cva(
   }
 );
 
-interface BaseTypographyProps extends Omit<React.HTMLAttributes<HTMLElement>, 'color'> {}
-
-export interface TypographyProps extends BaseTypographyProps, VariantProps<typeof typographyVariants> {}
+export interface TypographyProps 
+  extends Omit<React.HTMLAttributes<HTMLElement>, 'color'>,
+    VariantProps<typeof typographyVariants> {
+  asChild?: boolean;
+}
 
 const Typography = React.forwardRef<HTMLElement, TypographyProps>(
   ({ 
@@ -2572,14 +2531,12 @@ const Typography = React.forwardRef<HTMLElement, TypographyProps>(
           return 'blockquote';
         case 'code':
           return 'code';
-        case 'lead':
-        case 'large':
-        case 'small':
-        case 'muted':
+        case 'list':
+          return 'ul';
         default:
           return 'p';
       }
-    }, [variant]) as keyof JSX.IntrinsicElements;
+    }, [variant]);
 
     return React.createElement(
       Component,
@@ -2660,6 +2617,42 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+```
+
+# src\test-utils.ts
+
+```ts
+import { render as rtlRender } from '@testing-library/react';
+import type { RenderOptions } from '@testing-library/react';
+import * as React from 'react';
+
+function render(
+  ui: React.ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) {
+  return rtlRender(ui, { ...options });
+}
+
+// Re-export everything
+export * from '@testing-library/react';
+
+// Override render method
+export { render };
+```
+
+# src\types\jest.d.ts
+
+```ts
+import '@testing-library/jest-dom';
+
+declare global {
+  namespace jest {
+    interface Matchers<R> {
+      toHaveClass(className: string): R;
+      toBeInTheDocument(): R;
+    }
+  }
+}
 ```
 
 # tailwind.config.js
@@ -2778,9 +2771,13 @@ module.exports = {
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "emitDeclarationOnly": true,
-    "types": ["node", "@storybook/react"]
+    "types": ["node", "@storybook/react", "jest", "@testing-library/jest-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src/**/*", ".storybook/**/*"],
+  "include": ["src/**/*", ".storybook/**/*", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }
 ```
