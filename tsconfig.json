@@ -14,8 +14,12 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "emitDeclarationOnly": true,
-    "types": ["node", "@storybook/react"]
+    "types": ["node", "@storybook/react", "jest", "@testing-library/jest-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src/**/*", ".storybook/**/*"],
+  "include": ["src/**/*", ".storybook/**/*", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }
