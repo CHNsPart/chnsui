@@ -1,231 +1,168 @@
+import * as React from 'react';
 import { VariantProps, cva } from 'class-variance-authority';
-import React, { HTMLProps } from 'react';
-import { ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { cn } from '../../lib/utils';
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
+// Base table styles
 const tableVariants = cva(
-  'leading-10 bg-transparent',
+  "w-full border-collapse text-sm",
   {
     variants: {
       variant: {
-        default: 'border border-primary text-md tracking-tight',
-        bg: 'text-md bg-bg/20 tracking-tight p-5',
-        border: 'text-md',
+        default: "bg-white dark:bg-slate-800",
+        striped: "bg-white dark:bg-slate-800 [&_tr:nth-child(even)]:bg-gray-50 dark:[&_tr:nth-child(even)]:bg-slate-700",
+        bordered: "border border-gray-200 dark:border-slate-700",
+        minimal: "bg-transparent",
       },
-      padding: {
-        left: 'pl-5',
-        all: 'p-5',
-        right: 'pr-5',
-      },
-      alignmentment: {
-        left: 'text-left',
-        center: 'text-center',
-        right: 'text-right',
+      size: {
+        default: "text-sm",
+        sm: "text-xs",
+        lg: "text-base",
       },
     },
     defaultVariants: {
-      variant: 'default',
-      padding: null,
-      alignmentment: null
+      variant: "default",
+      size: "default",
     },
   }
 );
 
-const tableHeadVariants = cva(
-  'm-0 bg-transparent text-tertiary p-0 even:bg-muted',
+// Table Head styles
+const theadVariants = cva(
+  "text-left",
   {
     variants: {
-      variant:{
-        default: 'text-md bg-transparent border border-primary',
-        bg: 'text-md bg-bg/20 border-none',
-        border: 'text-md border border-primary',
-      },
-      alignment: {
-        left: 'text-left',
-        center: 'text-center',
-        right: 'text-right',
+      variant: {
+        default: "bg-gray-50 dark:bg-slate-700",
+        bordered: "bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600",
+        minimal: "border-b-2 border-gray-200 dark:border-slate-600",
       },
     },
     defaultVariants: {
-      alignment: 'left',
-      variant: null
+      variant: "default",
     },
   }
 );
 
-const tableBodyVariants = cva(
-  'm-0 bg-transparent text-tertiary p-0 even:bg-muted',
+// Table Cell styles
+const cellVariants = cva(
+  "px-4 py-3",
   {
     variants: {
-      variant:{
-        default: 'text-md bg-transparent border border-primary',
-        bg: 'text-md bg-bg/20 border-none',
-        border: 'text-md border border-primary',
+      textAlign: {
+        left: "text-left",
+        center: "text-center",
+        right: "text-right",
       },
-      alignment: {
-        left: 'text-left',
-        center: 'text-center',
-        right: 'text-right',
+      variant: {
+        default: "",
+        bordered: "border border-gray-200 dark:border-slate-700",
       },
     },
     defaultVariants: {
-      alignment: 'left',
-      variant: null
+      textAlign: "left",
+      variant: "default",
     },
   }
 );
 
-const tdVariants = cva(
-  'm-0 bg-transparent text-tertiary p-0 even:bg-muted',
-  {
-    variants: {
-      variant:{
-        default: 'text-md bg-transparent border border-primary',
-        bg: 'text-md bg-bg/20 border-none',
-        border: 'text-md border border-primary',
-      },
-      padding: {
-        left: 'pl-5',
-        all: 'p-5',
-        right: 'pr-5',
-      },
-    },
-    defaultVariants: {
-      padding: 'all',
-      variant: 'default'
-    },
-  }
+// Interfaces
+export interface TableProps 
+  extends React.TableHTMLAttributes<HTMLTableElement>,
+    VariantProps<typeof tableVariants> {}
+
+export interface TableHeadProps 
+  extends React.HTMLAttributes<HTMLTableSectionElement>,
+    VariantProps<typeof theadVariants> {}
+
+export interface TableBodyProps 
+  extends React.HTMLAttributes<HTMLTableSectionElement> {}
+
+export interface TableRowProps 
+  extends React.HTMLAttributes<HTMLTableRowElement> {
+  hover?: boolean;
+}
+
+export interface TableCellBaseProps extends VariantProps<typeof cellVariants> {
+  textAlign?: 'left' | 'center' | 'right';
+}
+
+export interface TableCellProps 
+  extends Omit<React.TdHTMLAttributes<HTMLTableCellElement>, 'align'>,
+    TableCellBaseProps {}
+
+export interface TableHeaderCellProps 
+  extends Omit<React.ThHTMLAttributes<HTMLTableCellElement>, 'align'>,
+    TableCellBaseProps {}
+
+// Components
+export const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, variant, size, ...props }, ref) => (
+    <table
+      ref={ref}
+      className={cn(tableVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
 );
+Table.displayName = "Table";
 
-const thVariants = cva(
-  'text-bold text-primary p-0',
-  {
-    variants: {
-      variant:{
-        default: 'bg-primary/10 border-2 border-primary',
-        bg: 'text-md bg-bg/20 border-none',
-        border: 'text-md text-white bg-primary/50 border border-white',
-      },
-      padding: {
-        left: 'pl-5',
-        all: 'p-5',
-        right: 'pr-5',
-      },
-    },
-    defaultVariants: {
-      padding: 'all',
-    },
-  }
+export const TableHeader = React.forwardRef<HTMLTableSectionElement, TableHeadProps>(
+  ({ className, variant, ...props }, ref) => (
+    <thead
+      ref={ref}
+      className={cn(theadVariants({ variant, className }))}
+      {...props}
+    />
+  )
 );
+TableHeader.displayName = "TableHeader";
 
-const trVariants = cva(
-  'text-bold text-primary p-0',
-  {
-    variants: {
-      variant:{
-        default: 'bg-primary/10 border-2 border-primary',
-        bg: 'text-md bg-bg/20 border-none',
-        border: 'text-md text-white bg-primary/50 border border-white',
-      },
-      padding: {
-        left: 'pl-5',
-        all: 'p-5',
-        right: 'pr-5',
-      },
-    },
-    defaultVariants: {
-      padding: 'all',
-    },
-  }
+export const TableBody = React.forwardRef<HTMLTableSectionElement, TableBodyProps>(
+  ({ className, ...props }, ref) => (
+    <tbody
+      ref={ref}
+      className={cn("divide-y divide-gray-200 dark:divide-slate-700", className)}
+      {...props}
+    />
+  )
 );
+TableBody.displayName = "TableBody";
 
-export interface TableProps extends HTMLProps<HTMLTableElement>, VariantProps<typeof tableVariants> {
-  children: React.ReactNode;
-  className?: string;
-}
+export const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
+  ({ className, hover, ...props }, ref) => (
+    <tr
+      ref={ref}
+      className={cn(
+        hover && "hover:bg-gray-50 dark:hover:bg-slate-700",
+        className
+      )}
+      {...props}
+    />
+  )
+);
+TableRow.displayName = "TableRow";
 
-export const Table: React.FC<TableProps> = ({ children, padding, alignmentment, variant, className, ...rest }) => {
-  return (
-    <table className={cn(tableVariants({ padding, alignmentment, variant, className }))} {...rest}>
-        {children}
-    </table>
-  );
-};
+export const TableCell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
+  ({ className, textAlign, variant, ...props }, ref) => (
+    <td
+      ref={ref}
+      className={cn(cellVariants({ textAlign, variant, className }))}
+      {...props}
+    />
+  )
+);
+TableCell.displayName = "TableCell";
 
-export interface TableHeadProps extends HTMLProps<HTMLTableSectionElement>, VariantProps<typeof tableHeadVariants> {
-  children: React.ReactNode | null;
-  className?: string;
-}
-
-export const TableHead: React.FC<TableHeadProps> = ({ children, variant, className, alignment, ...rest }) => {
-  return (
-    <thead className={cn(tableHeadVariants({ variant, className, alignment }))} {...rest}>
-
-        {children}
-
-    </thead>
-  );
-};
-export interface TableBodyProps extends HTMLProps<HTMLTableSectionElement>, VariantProps<typeof tableBodyVariants> {
-  children: React.ReactNode | null;
-  className?: string;
-}
-
-export const TableBody: React.FC<TableBodyProps> = ({ children, variant, className, alignment, ...rest }) => {
-  return (
-    <tbody className={cn(tableBodyVariants({ variant, className, alignment }))} {...rest}>
-        {children}
-    </tbody>
-  );
-};
-/* TD */
-export interface tdProps extends HTMLProps<HTMLTableCellElement>, VariantProps<typeof tdVariants> {
-  children: React.ReactNode | null;
-  className?: string;
-}
-
-export const Td: React.FC<tdProps> = ({ children, variant, className, padding, ...rest }) => {
-  return (
-    <td className={cn(tdVariants({ className, variant, padding }))} {...rest}>
-        {children}
-    </td>
-  );
-};
-
-export interface thProps extends HTMLProps<HTMLTableCellElement>, VariantProps<typeof thVariants> {
-  children: React.ReactNode | null;
-  className?: string;
-}
-
-export const Th: React.FC<thProps> = ({ children, variant, className, padding, ...rest }) => {
-  return (
-    <th className={cn(thVariants({ className, variant, padding }))} {...rest}>
-        {children}
-    </th>
-  );
-};
-export interface trProps extends HTMLProps<HTMLTableRowElement>, VariantProps<typeof trVariants> {
-  children: React.ReactNode | null;
-  className?: string;
-}
-
-export const Tr: React.FC<trProps> = ({ children, variant, className, padding, ...rest }) => {
-  return (
-    <tr className={cn(trVariants({ className, variant, padding }))} {...rest}>
-        {children}
-    </tr>
-  );
-};
-
-export default {
-    Table,
-    TableHead,
-    TableBody,
-    Td,
-    Th,
-    Tr
-};
+export const TableHeaderCell = React.forwardRef<HTMLTableCellElement, TableHeaderCellProps>(
+  ({ className, textAlign, variant, ...props }, ref) => (
+    <th
+      ref={ref}
+      className={cn(
+        cellVariants({ textAlign, variant, className }),
+        "font-semibold text-gray-900 dark:text-white"
+      )}
+      {...props}
+    />
+  )
+);
+TableHeaderCell.displayName = "TableHeaderCell";
